@@ -115,11 +115,14 @@ func TestSchedRun(t *testing.T) {
 	if as.NoError(sm3.Start()) {
 		gi = 0
 		as.NoError(sm3.Once(time.Now().Add(10*time.Millisecond), &sched.Job{Id: "id1", Typ: "test", Data: TestStruct2{In: 100}}))
+		as.NoError(sm3.Once(time.Now().Add(5*time.Millisecond), &sched.Job{Id: "id2", Typ: "test", Data: TestStruct2{In: 50}}))
 		as.NoError(sm3.Once(time.Now().Add(20*time.Millisecond), &sched.Job{Id: "id1", Typ: "test", Data: TestStruct2{In: 200}}))
+		time.Sleep(8 * time.Millisecond)
+		as.Equal(50, gi) // id2+5ms the nearest job should run first
+		time.Sleep(7 * time.Millisecond)
+		as.Equal(50, gi) // id1+10ms should be replaced
 		time.Sleep(15 * time.Millisecond)
-		as.Equal(0, gi) // first job should be replaced
-		time.Sleep(15 * time.Millisecond)
-		as.Equal(200, gi) // second job should be run correct
+		as.Equal(250, gi) // id1+20ms should be run correct
 
 		// shutdown
 		as.NoError(sm3.Stop())

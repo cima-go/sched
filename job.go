@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/rs/xid"
+
+	"github.com/cima-go/sched/pqueue"
 )
 
 func MakeJob(typ string, data interface{}) *Job {
@@ -28,7 +30,7 @@ type Task struct {
 	*Job
 	Next   time.Time
 	Period time.Duration
-	index  int // pqueue.Item's idx
+	queue  *pqueue.Item
 }
 
 func (t *Task) Encode() ([]byte, error) {
