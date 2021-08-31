@@ -53,7 +53,7 @@ type sched struct {
 	qLock  sync.Mutex
 	qItems pqueue.PriorityQueue
 	// task maps
-	mLock  sync.Mutex
+	mLock  sync.RWMutex
 	mItems map[string]*Task
 	// register
 	regLock sync.RWMutex

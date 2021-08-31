@@ -12,6 +12,15 @@ type Dispatcher interface {
 }
 
 func (s *sched) queued(task *Task) error {
+	// check if already exists
+	s.mLock.RLock()
+	if _, has := s.mItems[task.Id]; has {
+		s.mLock.RUnlock()
+		return nil
+	}
+	s.mLock.RUnlock()
+
+	// push new item
 	item := &pqueue.Item{
 		Value:    task.Id,
 		Priority: task.Next.UnixNano(),
