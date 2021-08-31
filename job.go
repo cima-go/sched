@@ -19,45 +19,49 @@ func MakeJob(typ string, data interface{}) *Job {
 
 type Job struct {
 	Id   string
-	At   time.Time
 	Typ  string
-	Once bool
 	Data interface{} `json:"-"`
 	Raw  []byte
 }
 
-func (j *Job) Encode() ([]byte, error) {
-	if len(j.Raw) == 0 {
-		if dat, err := json.Marshal(j.Data); err != nil {
+type Task struct {
+	*Job
+	Next   time.Time
+	Period time.Duration
+}
+
+func (t *Task) Encode() ([]byte, error) {
+	if len(t.Raw) == 0 {
+		if dat, err := json.Marshal(t.Data); err != nil {
 			return nil, err
 		} else {
-			j.Raw = dat
+			t.Raw = dat
 		}
 	}
 
-	return json.Marshal(j)
+	return json.Marshal(t)
 }
 
-func (j *Job) Decode(data []byte) error {
-	return json.Unmarshal(data, j)
+func (t *Task) Decode(data []byte) error {
+	return json.Unmarshal(data, t)
 }
 
-func (j *Job) Assign(to interface{}) error {
-	if j.Data != nil {
-		reflect.ValueOf(to).Elem().Set(reflect.ValueOf(j.Data))
+func (t *Task) Assign(to interface{}) error {
+	if t.Data != nil {
+		reflect.ValueOf(to).Elem().Set(reflect.ValueOf(t.Data))
 		return nil
 	}
 
-	if len(j.Raw) == 0 {
+	if len(t.Raw) == 0 {
 		return errors.New("no raw data")
 	}
 
-	if err := json.Unmarshal(j.Raw, to); err != nil {
+	if err := json.Unmarshal(t.Raw, to); err != nil {
 		return err
 	}
 
-	j.Data = reflect.ValueOf(to).Elem().Interface()
-	j.Raw = nil
+	t.Data = reflect.ValueOf(to).Elem().Interface()
+	t.Raw = nil
 
 	return nil
 }

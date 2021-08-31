@@ -18,13 +18,13 @@ func TestJobCodec(t *testing.T) {
 	as := assert.New(t)
 
 	t1 := &TestStruct1{Data1: "111", Data2: 222, data3: 333}
-	j1 := sched.MakeJob("test", t1)
+	j1 := &sched.Task{Job: sched.MakeJob("test", t1)}
 	bs1, err := j1.Encode()
 	if as.NoError(err) {
 		as.NotEmpty(bs1)
 	}
 
-	j2 := &sched.Job{}
+	j2 := &sched.Task{}
 	if as.NoError(j2.Decode(bs1)) {
 		as.Equal("test", j2.Typ)
 		var t2 *TestStruct1

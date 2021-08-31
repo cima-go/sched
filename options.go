@@ -1,13 +1,19 @@
 package sched
 
 import (
-	"go.uber.org/zap"
+	"time"
 )
 
 type Option func(s *sched)
 
-func WithLogger(log *zap.Logger) Option {
+func WithLogger(log Logger) Option {
 	return func(s *sched) {
 		s.logger = log
+	}
+}
+
+func WithTicker(dur time.Duration) Option {
+	return func(s *sched) {
+		s.ticker = dur
 	}
 }
