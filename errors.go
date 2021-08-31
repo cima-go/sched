@@ -5,6 +5,6 @@ import (
 )
 
 var (
-	ErrTypeNotRegister    = errors.New("type has not register")
+	ErrTypeNotRegistered  = errors.New("type has not registered")
 	ErrTypeBeenRegistered = errors.New("type has been registered")
 )

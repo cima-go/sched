@@ -94,7 +94,7 @@ func (s *sched) Start() error {
 	}
 
 	for _, item := range items {
-		var task *Task
+		task := &Task{}
 		if err := task.Decode(item.Data); err != nil {
 			return err
 		}

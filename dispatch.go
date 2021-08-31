@@ -3,7 +3,6 @@ package sched
 import (
 	"container/heap"
 	"reflect"
-	"time"
 
 	"github.com/cima-go/sched/pqueue"
 )
@@ -45,11 +44,10 @@ func (s *sched) forget(id string) error {
 func (s *sched) dispatch(before int64) {
 	for {
 		s.qLock.Lock()
-		item, next := s.qItems.PeekAndShift(before)
+		item, _ := s.qItems.PeekAndShift(before)
 		s.qLock.Unlock()
 
 		if item == nil {
-			s.logger.Debugf("nearest task should wait %s", time.Duration(next).String())
 			return
 		}
 
@@ -64,7 +62,10 @@ func (s *sched) dispatch(before int64) {
 		delete(s.mItems, tid)
 		s.mLock.Unlock()
 
-		s.workers.Process(task)
+		resp := s.workers.Process(task)
+		if err, is := resp.(error); is {
+			s.logger.Infof("worker process got error: %s", err.Error())
+		}
 	}
 }
 
@@ -74,7 +75,7 @@ func (s *sched) invoke(task *Task) error {
 
 	handler, has := s.regMaps[task.Typ]
 	if !has {
-		return ErrTypeNotRegister
+		return ErrTypeNotRegistered
 	}
 
 	ctx := &ctx{s: s, t: task}

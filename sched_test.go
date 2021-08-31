@@ -33,57 +33,79 @@ func (t *testDB) Delete(item *sched.StoreItem) error {
 	return nil
 }
 
+type TestStruct2 struct {
+	In   int
+	Max  int
+	Over int
+}
+
 func TestSchedRun(t *testing.T) {
 	as := assert.New(t)
 
-	type ts1 struct {
-		in   int
-		max  int
-		over int
-	}
-
 	gi := 0
-
-	db := &testDB{}
-	sm := sched.New(db, sched.WithTicker(10*time.Millisecond), sched.WithLogger(&stdoutLogger{}))
-	as.NoError(sm.Register("test", func(ctx sched.Context, data ts1) {
-		if data.max == 0 || gi < data.max {
-			gi += data.in
+	fn := func(ctx sched.Context, data TestStruct2) {
+		if data.Max == 0 || gi < data.Max {
+			gi += data.In
 		}
-		if data.over > 0 && gi >= data.over {
+		if data.Over > 0 && gi >= data.Over {
 			as.NoError(ctx.Cancel())
 		}
-	}))
+	}
 
-	if as.NoError(sm.Start()) {
-		// test run Once
-		if as.NoError(sm.Once(time.Now().Add(10*time.Millisecond), sched.MakeJob("test", ts1{in: 100}))) {
+	db := &testDB{}
+	log := &stdoutLogger{}
+	sm1 := sched.New(db, sched.WithTicker(10*time.Millisecond), sched.WithLogger(log))
+	as.NoError(sm1.Register("test", fn))
+
+	// sched test 1 --- common
+	if as.NoError(sm1.Start()) {
+		// test run once
+		if as.NoError(sm1.Once(time.Now().Add(10*time.Millisecond), sched.MakeJob("test", TestStruct2{In: 100}))) {
 			time.Sleep(15 * time.Millisecond)
 			as.Equal(100, gi) // should run
 			time.Sleep(15 * time.Millisecond)
 			as.Equal(100, gi) // should not run
 		}
 
-		// test run Period
+		// test run period
 		gi = 0
-		j1 := sched.MakeJob("test", ts1{in: 10, max: 50})
-		if as.NoError(sm.Every(10*time.Millisecond, j1)) {
+		j1 := sched.MakeJob("test", TestStruct2{In: 10, Max: 50})
+		if as.NoError(sm1.Every(10*time.Millisecond, j1)) {
 			time.Sleep(100 * time.Millisecond)
 			as.Equal(50, gi)
-			as.NoError(sm.Cancel(j1))
+			as.NoError(sm1.Cancel(j1))
 		}
 
 		// test ctx cancel
 		gi = 0
-		j2 := sched.MakeJob("test", ts1{in: 10, over: 50})
-		if as.NoError(sm.Every(10*time.Millisecond, j2)) {
+		j2 := sched.MakeJob("test", TestStruct2{In: 10, Over: 50})
+		if as.NoError(sm1.Every(10*time.Millisecond, j2)) {
 			time.Sleep(100 * time.Millisecond)
 			as.Equal(50, gi)
-			as.NoError(sm.Cancel(j2))
+			as.NoError(sm1.Cancel(j2))
 		}
 
-		if as.NoError(sm.Stop()) {
-			return
-		}
+		// test restore - prepare
+		gi = 0
+		as.NoError(sm1.Once(time.Now().Add(10*time.Millisecond), sched.MakeJob("test", TestStruct2{In: 100})))
+
+		// shutdown
+		as.NoError(sm1.Stop())
+	}
+
+	// ensure db records
+	if jobs, err := db.Query(); as.NoError(err) {
+		as.Equal(1, len(jobs))
+	}
+
+	// sched test 2 --- test restore
+	sm2 := sched.New(db, sched.WithTicker(10*time.Millisecond), sched.WithLogger(log))
+	as.NoError(sm2.Register("test", fn))
+	if as.NoError(sm2.Start()) {
+		time.Sleep(20 * time.Millisecond)
+		as.Equal(100, gi)
+
+		// shutdown
+		as.NoError(sm2.Stop())
 	}
 }
