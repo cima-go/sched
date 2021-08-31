@@ -14,8 +14,18 @@ type Dispatcher interface {
 func (s *sched) queued(task *Task) error {
 	// check if already exists
 	s.mLock.RLock()
-	if _, has := s.mItems[task.Id]; has {
+	if exists, has := s.mItems[task.Id]; has {
 		s.mLock.RUnlock()
+		// do replace
+		// -- items maps
+		s.mLock.Lock()
+		s.mItems[task.Id] = task
+		s.mLock.Unlock()
+		// -- items queue
+		s.qLock.Lock()
+		s.qItems[exists.index].Priority = task.Next.UnixNano()
+		heap.Fix(&s.qItems, exists.index)
+		s.qLock.Unlock()
 		return nil
 	}
 	s.mLock.RUnlock()
@@ -30,6 +40,9 @@ func (s *sched) queued(task *Task) error {
 	s.qLock.Lock()
 	heap.Push(&s.qItems, item)
 	s.qLock.Unlock()
+
+	// queue idx
+	task.index = item.Index
 
 	// add to map
 	s.mLock.Lock()

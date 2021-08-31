@@ -54,16 +54,16 @@ func TestSchedRun(t *testing.T) {
 
 	db := &testDB{}
 	log := &stdoutLogger{}
-	sm1 := sched.New(db, sched.WithTicker(10*time.Millisecond), sched.WithLogger(log))
+	sm1 := sched.New(db, sched.WithTicker(time.Millisecond), sched.WithLogger(log))
 	as.NoError(sm1.Register("test", fn))
 
 	// sched test 1 --- common
 	if as.NoError(sm1.Start()) {
 		// test run once
 		if as.NoError(sm1.Once(time.Now().Add(10*time.Millisecond), sched.MakeJob("test", TestStruct2{In: 100}))) {
-			time.Sleep(15 * time.Millisecond)
+			time.Sleep(12 * time.Millisecond)
 			as.Equal(100, gi) // should run
-			time.Sleep(15 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 			as.Equal(100, gi) // should not run
 		}
 
@@ -71,7 +71,7 @@ func TestSchedRun(t *testing.T) {
 		gi = 0
 		j1 := sched.MakeJob("test", TestStruct2{In: 10, Max: 50})
 		if as.NoError(sm1.Every(10*time.Millisecond, j1)) {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(60 * time.Millisecond)
 			as.Equal(50, gi)
 			as.NoError(sm1.Cancel(j1))
 		}
@@ -80,7 +80,7 @@ func TestSchedRun(t *testing.T) {
 		gi = 0
 		j2 := sched.MakeJob("test", TestStruct2{In: 10, Over: 50})
 		if as.NoError(sm1.Every(10*time.Millisecond, j2)) {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(60 * time.Millisecond)
 			as.Equal(50, gi)
 			as.NoError(sm1.Cancel(j2))
 		}
@@ -99,13 +99,29 @@ func TestSchedRun(t *testing.T) {
 	}
 
 	// sched test 2 --- test restore
-	sm2 := sched.New(db, sched.WithTicker(10*time.Millisecond), sched.WithLogger(log))
+	sm2 := sched.New(db, sched.WithTicker(time.Millisecond), sched.WithLogger(log))
 	as.NoError(sm2.Register("test", fn))
 	if as.NoError(sm2.Start()) {
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 		as.Equal(100, gi)
 
 		// shutdown
 		as.NoError(sm2.Stop())
+	}
+
+	// sched test 3 -- custom job id
+	sm3 := sched.New(db, sched.WithTicker(time.Millisecond), sched.WithLogger(log))
+	as.NoError(sm3.Register("test", fn))
+	if as.NoError(sm3.Start()) {
+		gi = 0
+		as.NoError(sm3.Once(time.Now().Add(10*time.Millisecond), &sched.Job{Id: "id1", Typ: "test", Data: TestStruct2{In: 100}}))
+		as.NoError(sm3.Once(time.Now().Add(20*time.Millisecond), &sched.Job{Id: "id1", Typ: "test", Data: TestStruct2{In: 200}}))
+		time.Sleep(15 * time.Millisecond)
+		as.Equal(0, gi) // first job should be replaced
+		time.Sleep(15 * time.Millisecond)
+		as.Equal(200, gi) // second job should be run correct
+
+		// shutdown
+		as.NoError(sm3.Stop())
 	}
 }

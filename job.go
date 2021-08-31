@@ -28,6 +28,7 @@ type Task struct {
 	*Job
 	Next   time.Time
 	Period time.Duration
+	index  int // pqueue.Item's idx
 }
 
 func (t *Task) Encode() ([]byte, error) {
